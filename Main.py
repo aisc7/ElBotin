@@ -1,6 +1,6 @@
-# Main.py
+# main.py
 
-from src.Server import server
+from view.View import main
 
 if __name__ == "__main__":
-    server.launch()
+    main()
