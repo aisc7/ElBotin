@@ -1,15 +1,12 @@
-#src/Botin.py
+# src/Botin.py
 import networkx as nx
-from heapq import heappop, heappush
-
-# Definición de Clases
 
 class CentroDeOperacion:
     def __init__(self, id, capacidad_dinero, capacidad_vehiculos, capacidad_escoltas):
         self.id = id
-        self.capacidad_dinero = capacidad_dinero
-        self.capacidad_vehiculos = capacidad_vehiculos
-        self.capacidad_escoltas = capacidad_escoltas
+        self.capacidad_dinero = 10.000
+        self.capacidad_vehiculos = 7
+        self.capacidad_escoltas = 10
         self.dinero = 0
         self.vehiculos = []
         self.escoltas = []
@@ -29,20 +26,31 @@ class CentroDeOperacion:
             raise ValueError("Capacidad de dinero excedida en el centro de operación")
 
 class Cliente:
-    def __init__(self, id, demanda_dinero, tiempo_entrega, capacidad_contenedores):
+    def __init__(self, id):
         self.id = id
-        self.demanda_dinero = demanda_dinero
-        self.tiempo_entrega = tiempo_entrega
-        self.capacidad_contenedores = capacidad_contenedores
+        self.dinero = 0
 
 class Vehiculo:
-    def __init__(self, id, tipo, capacidad, escudo, ataque, escoltas_necesarias):
+    def __init__(self, id, tipo, velocidad, capacidad, escudo, ataque, escoltas_necesarias):
         self.id = id
         self.tipo = tipo
+        self.velocidad = velocidad
         self.capacidad = capacidad
         self.escudo = escudo
         self.ataque = ataque
         self.escoltas_necesarias = escoltas_necesarias
+        self.contenedores_permitidos = self.establecer_contenedores_permitidos()
+
+    def establecer_contenedores_permitidos(self):
+        if self.tipo == "camioneta":
+            return ["Tipo1", "Tipo2"]  # Ejemplo de contenedores permitidos para camioneta
+        elif self.tipo == "blindado":
+            return ["Tipo3", "Tipo4"]  # Ejemplo de contenedores permitidos para vehículo blindado
+        else:
+            raise ValueError("Tipo de vehículo no válido")
+        
+    def puede_llevar_contenedor(self, tipo_contenedor):
+        return tipo_contenedor in self.contenedores_permitidos
 
 class Escolta:
     def __init__(self, id, escudo, ataque):
@@ -51,18 +59,28 @@ class Escolta:
         self.ataque = ataque
 
 class Contenedor:
-    def __init__(self, id, capacidad_peso):
+    def __init__(self, id, tipo_contenedor):
         self.id = id
-        self.capacidad_peso = capacidad_peso
+        self.tipo_contenedor = tipo_contenedor
+        self.capacidad_peso = self.establecer_capacidad_peso()
+
+    def establecer_capacidad_peso(self):
+        if self.tipo_contenedor == "pequeno":
+            return 200   # Capacidad máxima de peso para contenedor pequeño
+        elif self.tipo_contenedor == "mediano":
+            return 500  # Capacidad máxima de peso para contenedor mediano
+        elif self.tipo_contenedor == "grande":
+            return 2000  # Capacidad máxima de peso para contenedor grande
+        elif self.tipo_contenedor == "doble":
+            return 2500 or 2200
+        else:
+            raise ValueError("Tipo de contenedor no válido")
 
 class Puente:
-     def __init__(self, id, peso_maximo):
+    def __init__(self, id, peso_maximo):
         self.id = id
-        self.tipo = 'puente' 
-        self.peso_maximo = peso_maximo  # Peso máximo permitido en el puente
+        self.peso_maximo = peso_maximo
 
 class BandaLadrones:
-    def __init__(self, id, vehiculos):
+    def __init__(self, id):
         self.id = id
-        self.vehiculos = vehiculos
-
