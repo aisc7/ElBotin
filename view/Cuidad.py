@@ -3,6 +3,43 @@ import pygame
 import networkx as nx
 import pathlib
 from src.Botin import Puente
+from PySide6.QtCore import Signal, QThread
+
+class RenderThread(QThread):
+    finished_signal = Signal()
+
+    def __init__(self, ciudad, parent=None):
+        super().__init__(parent)
+        self.ciudad = ciudad
+        self.running = False
+
+    def run(self):
+        pygame.init()
+        screen = pygame.display.set_mode((1100, 1000))
+        pygame.display.set_caption("Pygame Window")
+
+        self.running = True
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+            
+            # Dibujar el fondo de la ciudad en la ventana de Pygame
+            screen.blit(self.ciudad.background, (0, 0))
+            
+            # Aquí puedes agregar más lógica de dibujo de objetos, personajes, etc.
+            self.ciudad.draw_objects(screen)
+            
+            pygame.display.flip()
+            pygame.time.delay(10)
+
+        pygame.quit()
+        self.finished_signal.emit()
+
+    def stop(self):
+        self.running = False
+        pygame.quit()
+        self.wait()
 
 class Ciudad:
     def __init__(self):
@@ -10,6 +47,16 @@ class Ciudad:
         self.imagenes_vehiculos = {}
         self.imagenes_personajes = {}
         self.ciudad = nx.DiGraph()
+        self.pygame_running = False
+
+    def iniciar_pygame(self):
+        pygame.init()
+        self.cargar_imagenes()
+        self.pygame_running = True
+
+        # Iniciar el hilo de renderizado de Pygame
+        self.render_thread = RenderThread(self)
+        self.render_thread.start()
 
     def cargar_imagenes(self):
         # Cargar la imagen de fondo
@@ -19,7 +66,6 @@ class Ciudad:
         rutas_vehiculos = {
             "blindado": "./data/image/Blindado.png",
             "camioneta": "./data/image/Camioneta.png",
-             
         }
         for nombre_vehiculo, ruta in rutas_vehiculos.items():
             self.imagenes_vehiculos[nombre_vehiculo] = pygame.image.load(ruta)
@@ -72,6 +118,21 @@ class Ciudad:
         for nodo, puente in puentes.items():
             self.ciudad.nodes[nodo]['puente'] = puente
 
+    def draw_objects(self, screen):
+        # Método para dibujar objetos adicionales en la ventana de Pygame
+        # Por ejemplo, dibujar vehículos y personajes
+        pass
+
+    def actualizar_posicion_vehiculo(self, x, y):
+        # Método para actualizar la posición del vehículo en la interfaz gráfica
+        # Implementa la lógica para mover el vehículo a la posición (x, y)
+        pass
+
+    def stop_pygame(self):
+        pygame.quit()
+        self.pygame_running = False
+        self.render_thread.stop()
+
     def dividir_imagen(self):
         ancho_imagen, alto_imagen = self.background.get_size()
         ancho_parte = 256
@@ -101,5 +162,3 @@ class Ciudad:
         parte = self.background.subsurface((x, y, ancho, alto))
         ruta_archivo = pathlib.Path(nombre_archivo)
         pygame.image.save(parte, ruta_archivo)
-
-    

@@ -1,143 +1,32 @@
-import pygame
-import networkx as nx
-from view.Cuidad import Ciudad
-from src.Botin import Vehiculo
-from src.Rutas import Rutas
-from PySide6.QtWidgets import QDialog, QListWidget, QAbstractItemView, QComboBox, QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
-from PySide6.QtCore import QObject, Signal, Qt
+import os
 import csv
-import sys
+import pygame
+from src.Botin import Vehiculo
+from PySide6.QtCore import Signal
+from view.Cuidad import Ciudad, RenderThread
+from PySide6.QtWidgets import QApplication,QDialog,QInputDialog,QMessageBox,QAbstractItemView, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton
 
 
-class MainWindow(QObject):
-    show_form_signal = Signal()
-    show_simulation_dialog_signal = Signal()
 
-    def __init__(self):
-        super().__init__()
-        self.ciudad = Ciudad()
-        self.ciudad.background = pygame.image.load('./data/image/cuidad.jpeg')
-
-        # Inicializar botones en Pygame
-        self.boton_registro = pygame.Rect(10, 10, 120, 40)
-        self.boton_simulaciones = pygame.Rect(170, 10, 150, 40)
-        self.corriendo = True
-
-        pygame.init()
-        self.pantalla = pygame.display.set_mode((1100, 1000))
-        pygame.display.set_caption("Modelo de Ciudad")
-
-        # Definir vehículos con parámetros personalizados
-        self.Camioneta = Vehiculo(id=1, tipo="camioneta", velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
-        self.Blindado = Vehiculo(id=2, tipo="blindado", velocidad=1, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)
-
-        self.show_form_signal.connect(self.mostrar_formulario)
-        self.show_simulation_dialog_signal.connect(self.mostrar_dialogo_simulaciones)
-
-    def handle_events(self):
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                self.corriendo = False
-            elif evento.type == pygame.MOUSEBUTTONDOWN:
-                if self.boton_registro.collidepoint(evento.pos):
-                    self.show_form_signal.emit()
-                elif self.boton_simulaciones.collidepoint(evento.pos):
-                    self.show_simulation_dialog_signal.emit()
-
-    def mostrar_dialogo_simulaciones(self):
-        dialogo = DialogoSimulaciones()
-        dialogo.exec_()
-
-    def mostrar_formulario(self):
-        formulario = Formulario()
-        formulario.show()
-
-    def main(self):
-        while self.corriendo:
-            self.handle_events()
-
-            self.pantalla.fill((255, 255, 255))
-            if self.ciudad.background:
-                self.pantalla.blit(self.ciudad.background, (0, 0))
-
-            # Dibujar botones
-            pygame.draw.rect(self.pantalla, (0, 103, 105), self.boton_registro)
-            pygame.draw.rect(self.pantalla, (0, 103, 105), self.boton_simulaciones)
-            font = pygame.font.SysFont(None, 28)  # Usa la fuente predeterminada
-            text_surface_registro = font.render("Registro", True, (255, 255, 255))
-            text_surface_simulaciones = font.render("Simulaciones", True, (255, 255, 255))
-            self.pantalla.blit(text_surface_registro, (self.boton_registro.x + 10, self.boton_registro.y + 10))
-            self.pantalla.blit(text_surface_simulaciones, (self.boton_simulaciones.x + 10, self.boton_simulaciones.y + 10))
-
-            pygame.display.flip()
-
-        pygame.quit()
-
-
-class DialogoSimulaciones(QDialog):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Simulaciones")
-        self.resize(400, 200)
-        self.init_ui()
-
-    def init_ui(self):
-        layout = QVBoxLayout()
-
-        self.boton_generar_ruta = QPushButton("Generar Ruta")
-        self.boton_generar_ruta.clicked.connect(self.generar_ruta)
-        layout.addWidget(self.boton_generar_ruta)
-
-        self.boton_banda = QPushButton("Banda")
-        self.boton_banda.clicked.connect(self.mostrar_banda)
-        layout.addWidget(self.boton_banda)
-
-        self.setLayout(layout)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #f0f0f0;
-            }
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                margin: 10px 0;
-                border-radius: 12px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
-
-    def mostrar_banda(self):
-        QMessageBox.information(self, "Información de la Banda", "Detalles de la banda de ladrones...")
-
-    def generar_ruta(self):
-        pass  # Aquí iría la lógica para generar la ruta
-
-
-class Formulario(QWidget):
-    def __init__(self):
-        super().__init__()
+class RegistroWidget(QWidget):
+    def __init__(self, ciudad, parent=None):
+        super(RegistroWidget, self).__init__(parent)
+        self.ciudad = ciudad
         self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle("Planificar Ruta")
-        self.resize(400, 400)
         layout = QVBoxLayout()
 
         self.origen_label = QLabel("Nombre")
         self.origen_input = QLineEdit(self)
         layout.addWidget(self.origen_label)
         layout.addWidget(self.origen_input)
-
+        
         self.cantidad_dinero_label = QLabel("Dinero a enviar")
-        self.cantidad_dinero_input = QLineEdit(self)
+        self.cantidad_dinero_input = QComboBox(self)
+        dinero_opciones = [str(i) for i in range(100, 2600, 100)]  # Genera opciones desde 100 hasta 2500 en incrementos de 100
+        self.cantidad_dinero_input.addItems(dinero_opciones)
         layout.addWidget(self.cantidad_dinero_label)
         layout.addWidget(self.cantidad_dinero_input)
 
@@ -157,30 +46,14 @@ class Formulario(QWidget):
         layout.addWidget(self.lista_destinos_label)
         layout.addWidget(self.lista_destinos)
 
-        self.capacidad_puente_maxima_label = QLabel("Tiempo estimado de entrega")
-        self.capacidad_puente_maxima_input = QLineEdit(self)
-        layout.addWidget(self.capacidad_puente_maxima_label)
-        layout.addWidget(self.capacidad_puente_maxima_input)
-
+        self.tiempo_estimado_label = QLabel("Tiempo estimado de entrega")
+        self.tiempo_estimado_input = QComboBox(self)
+        self.tiempo_estimado_input.addItems(["10 minutos", "15 minutos", "30 minutos", "1 hora"])
+        layout.addWidget(self.tiempo_estimado_label)
+        layout.addWidget(self.tiempo_estimado_input)
+        
         self.submit_button = QPushButton("Submit", self)
         self.submit_button.clicked.connect(self.on_submit)
-        self.submit_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 15px 32px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                margin: 4px 2px;
-                border-radius: 12px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
         layout.addWidget(self.submit_button)
 
         self.destino_input.currentIndexChanged.connect(self.toggle_lista_destinos)
@@ -195,27 +68,262 @@ class Formulario(QWidget):
             self.lista_destinos_label.setVisible(False)
 
     def on_submit(self):
-        origen = self.origen_input.text()
+        nombre = self.origen_input.text()
         destino = self.destino_input.currentText()
-        cantidad_dinero = int(self.cantidad_dinero_input.text())
-        capacidad_puente_maxima = int(self.capacidad_puente_maxima_input.text())
+        cantidad_dinero = int(self.cantidad_dinero_input.currentText())
+        tiempo_estimado = self.tiempo_estimado_input.currentText()
 
         if destino == "Entre varios clientes":
             destinos = [item.text() for item in self.lista_destinos.selectedItems()]
             destino = ", ".join(destinos)
 
-        # Guardar en CSV
-        with open('./data/registro.csv', 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([origen, destino, cantidad_dinero, capacidad_puente_maxima])
+      # Guardar en CSV
+        file_path = './data/registro.csv'
+        file_exists = os.path.isfile(file_path)
 
-        costo_ruta, camino, vehiculo_seleccionado = Rutas.planificar_ruta(self.ciudad, origen, destino, cantidad_dinero, capacidad_puente_maxima)
-        if camino:
-            if vehiculo_seleccionado.capacidad >= cantidad_dinero:
-                QMessageBox.information(self, "Ruta Planificada", f"Ruta: {camino}, Costo: {costo_ruta}, Vehículo: {vehiculo_seleccionado.id}")
-            else:
-                QMessageBox.warning(self, "Capacidad Insuficiente", "El vehículo seleccionado no tiene suficiente capacidad.")
-        else:
-            QMessageBox.critical(self, "Error", "No se encontró una ruta válida o no se puede hacer a tiempo")
+        try:
+            with open(file_path, 'a', newline='') as file:
+                writer = csv.writer(file)
+                if not file_exists:
+                    writer.writerow(["Nombre", "Dinero_a_enviar", "Destino", "Tiempo_estimado"])
+                writer.writerow([nombre, cantidad_dinero, destino, tiempo_estimado])
+        except Exception as e:
+            QMessageBox.critical(self, "Error al guardar", f"No se pudo guardar en el archivo CSV: {str(e)}")
+            return
 
-        self.close()
+    # Mostrar alerta de guardado exitoso
+        QMessageBox.information(self, "Guardado Exitoso", "Los datos han sido guardados correctamente en el archivo CSV.")
+
+        
+        # costo_ruta, camino, vehiculo_seleccionado = Rutas.planificar_ruta(self.ciudad, origen, destino, cantidad_dinero, capacidad_puente_maxima)
+        # if camino:
+        #     if vehiculo_seleccionado.capacidad >= cantidad_dinero:
+        #         QMessageBox.information(self, "Ruta Planificada", f"Ruta: {camino}, Costo: {costo_ruta}, Vehículo: {vehiculo_seleccionado.id}")
+        #     else:
+        #         QMessageBox.warning(self, "Capacidad Insuficiente", "El vehículo seleccionado no tiene suficiente capacidad.")
+        # else:
+        #     QMessageBox.critical(self, "Error", "No se encontró una ruta válida o no se puede hacer a tiempo")
+        
+        # Limpiar campos después de guardar
+    # Limpiar campos después de guardar
+        self.origen_input.clear()
+        self.cantidad_dinero_input.setCurrentIndex(0)
+        self.destino_input.setCurrentIndex(0)
+        self.tiempo_estimado_input.setCurrentIndex(0)
+        self.lista_destinos.clearSelection()
+
+
+class BandaDialog(QDialog):
+    def __init__(self, parent=None):
+        super(BandaDialog, self).__init__(parent)
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle("Configuración de la Banda")
+        self.resize(400, 300)
+        layout = QVBoxLayout()
+        clientes = self.obtener_clientes_del_csv()
+        if not clientes:
+            QMessageBox.warning(self, "Advertencia", "No hay clientes registrados.")
+            return
+
+        self.cliente_input = QComboBox(self)
+        self.cliente_input.addItems(clientes)
+        layout.addWidget(QLabel("Seleccionar Cliente"))
+        layout.addWidget(self.cliente_input)
+
+        self.ataque_label = QLabel("Ataque")
+        self.ataque_input = QComboBox(self)
+        ataque_opciones = [str(i) for i in range(5, 35, 5)]  # Opciones de ataque: 5, 10, 15, 20, 25, 30
+        self.ataque_input.addItems(ataque_opciones)
+        layout.addWidget(self.ataque_label)
+        layout.addWidget(self.ataque_input)
+
+        self.escudo_label = QLabel("Escudo")
+        self.escudo_input = QComboBox(self)
+        escudo_opciones = [str(i) for i in range(5, 45, 5)]  # Opciones de escudo: 5, 10, 15, 20, 25, 30, 35, 40
+        self.escudo_input.addItems(escudo_opciones)
+        layout.addWidget(self.escudo_label)
+        layout.addWidget(self.escudo_input)
+
+        self.submit_button = QPushButton("Simular", self)
+        self.submit_button.clicked.connect(self.accept)
+        layout.addWidget(self.submit_button)
+
+        self.setLayout(layout)
+
+    def get_values(self):
+        ataque = int(self.ataque_input.currentText())
+        escudo = int(self.escudo_input.currentText())
+        cliente = self.cliente_input.currentText()
+        return ataque, escudo, cliente
+
+    def obtener_clientes_del_csv(self):
+        try:
+            with open('./data/registro.csv', 'r') as file:
+                reader = csv.reader(file)
+                next(reader)  # Saltar el encabezado si lo hay
+                clientes = [row[0] for row in reader]  # Suponiendo que el nombre del cliente está en la primera columna
+            return clientes
+        except Exception as e:
+            QMessageBox.critical(self, "Error al leer CSV", f"No se pudo leer el archivo CSV: {str(e)}")
+            return []
+
+class SimulacionDialogoWidget(QWidget):
+    def __init__(self, parent=None):
+        super(SimulacionDialogoWidget, self).__init__(parent)
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        self.boton_generar_ruta = QPushButton("Generar Ruta")
+        self.boton_generar_ruta.clicked.connect(self.generar_ruta)
+        layout.addWidget(self.boton_generar_ruta)
+
+        self.boton_banda = QPushButton("Banda")
+        self.boton_banda.clicked.connect(self.mostrar_banda)
+        layout.addWidget(self.boton_banda)
+        
+        self.boton_simular = QPushButton("Simular")
+        self.boton_simular.clicked.connect(self.simular_pygame)
+        layout.addWidget(self.boton_simular)
+
+        self.setLayout(layout)
+
+    def simular_pygame(self):
+        self.ciudad = Ciudad()
+        self.ciudad.iniciar_pygame()
+
+    
+    def mostrar_banda(self):
+        dialog = BandaDialog(self)
+        if dialog.exec():
+            ataque, escudo, cliente = dialog.get_values()
+            QMessageBox.information(self, "Valores Seleccionados", f"Ataque: {ataque}, Escudo: {escudo}, Cliente: {cliente}")
+
+
+    def generar_ruta(self):
+        clientes = self.obtener_clientes_del_csv()
+        if not clientes:
+            QMessageBox.warning(self, "Advertencia", "No hay clientes registrados.")
+            return
+        
+        cliente, Simular = QInputDialog.getItem(self, "Seleccionar Cliente", "Elige un cliente:", clientes, 0, False)
+        if Simular and cliente:
+            QMessageBox.information(self, "Cliente a simular", f"Simularas a: {cliente}")
+
+    def obtener_clientes_del_csv(self):
+        try:
+            with open('./data/registro.csv', 'r') as file:
+                reader = csv.reader(file)
+                next(reader)  # Saltar el encabezado si lo hay
+                clientes = [row[0] for row in reader]  # Suponiendo que el nombre del cliente está en la primera columna
+            return clientes
+        except Exception as e:
+            QMessageBox.critical(self, "Error al leer CSV", f"No se pudo leer el archivo CSV: {str(e)}")
+            return []
+
+       
+class MainWindow(QMainWindow):
+    show_form_signal = Signal()
+    show_simulation_dialog_signal = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self.ciudad = Ciudad()
+        self.ciudad.background = pygame.image.load('./data/image/cuidad.jpeg')
+
+        self.Camioneta = Vehiculo(id=1, tipo="camioneta", velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
+        self.Blindado = Vehiculo(id=2, tipo="blindado", velocidad=1, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)
+        self.render_thread = None
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle("Simulación de Rutas")
+
+        # Establecer tamaño de la ventana
+        self.resize(800, 800)
+
+        self.tabs = QTabWidget()
+        self.setCentralWidget(self.tabs)
+
+        # Crear las pestañas
+        self.registro_tab = RegistroWidget(self.ciudad)
+        self.simulacion_dialogo_tab = SimulacionDialogoWidget()
+      
+        # Añadir las pestañas al widget de pestañas
+        self.tabs.addTab(self.registro_tab, "Registro")
+        self.tabs.addTab(self.simulacion_dialogo_tab, "Ajustes de Simulación")
+        
+        # Conectar señales a métodos
+        self.show_form_signal.connect(self.mostrar_formulario)
+        self.show_simulation_dialog_signal.connect(self.mostrar_dialogo_simulaciones)
+        
+        self.apply_styles()    
+    def apply_styles(self):
+     self.setStyleSheet("""
+        QTabWidget::pane {
+            border: 1px solid #50623A;
+        }
+        QTabBar::tab {
+            background: #50623A;
+            border: 1px solid #C4C4C3;
+            padding: 10px; /* Aumenta el padding para espaciar más los tabs */
+            margin: 1px;
+            font-size: 17px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        QTabBar::tab:selected {
+            background: #294B29;
+            margin-bottom: 2px;
+        }
+        QLabel {
+            font-size: 15px; /* Aumenta el tamaño de la fuente de las etiquetas */
+        }
+        QLineEdit, QComboBox, QListWidget {
+            font-size: 15px; /* Aumenta el tamaño de la fuente de los campos de entrada, combo boxes y listas */
+            padding: 10px; /* Aumenta el padding para hacer los campos más grandes */
+            border: 2px solid #C4C4C3; /* Aumenta el grosor del borde */
+            border-radius: 8px; /* Aumenta el radio de borde para hacerlos más redondeados */
+        }
+        QPushButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px; /* Aumenta el padding horizontal y vertical del botón */
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 15px; /* Aumenta el tamaño de la fuente del botón */
+            margin: 20px 0; /* Aumenta el margen vertical del botón */
+            border-radius: 12px;
+        }
+        QPushButton:hover {
+            background-color: #45a049;
+        }
+
+    """)
+        
+    def closeEvent(self, event):
+    # Método que se llama cuando se intenta cerrar la ventana principal
+        if self.render_thread:
+            self.render_thread.quit()
+            self.render_thread.wait()
+        event.accept()
+        
+        # Aplicar estilos
+        self.apply_styles()
+    
+    def mostrar_dialogo_simulaciones(self):
+        self.tabs.setCurrentIndex(1)
+        
+    def mostrar_formulario(self):
+        self.tabs.setCurrentIndex(0)
+
+  # Cerrar Pygame al cerrar la aplicación
+        app = QApplication.instance()
+        if app:
+            app.aboutToQuit.connect(self.ciudad.stop_pygame)
+        
