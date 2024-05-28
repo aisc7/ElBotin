@@ -1,9 +1,10 @@
+#view/View.py
 import os
 import csv
 import pygame
 from src.Botin import Vehiculo
 from PySide6.QtCore import Signal
-from view.Cuidad import Ciudad, RenderThread
+from view.Ciudad import Ciudad, RenderThread
 from PySide6.QtWidgets import QApplication,QDialog,QInputDialog,QMessageBox,QAbstractItemView, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton
 
 
@@ -52,9 +53,9 @@ class RegistroWidget(QWidget):
         layout.addWidget(self.tiempo_estimado_label)
         layout.addWidget(self.tiempo_estimado_input)
         
-        self.submit_button = QPushButton("Submit", self)
-        self.submit_button.clicked.connect(self.on_submit)
-        layout.addWidget(self.submit_button)
+        self.guardar_button = QPushButton("Guardar", self)
+        self.guardar_button.clicked.connect(self.on_guardar)
+        layout.addWidget(self.guardar_button)
 
         self.destino_input.currentIndexChanged.connect(self.toggle_lista_destinos)
         self.setLayout(layout)
@@ -67,7 +68,7 @@ class RegistroWidget(QWidget):
             self.lista_destinos.setVisible(False)
             self.lista_destinos_label.setVisible(False)
 
-    def on_submit(self):
+    def on_guardar(self):
         nombre = self.origen_input.text()
         destino = self.destino_input.currentText()
         cantidad_dinero = int(self.cantidad_dinero_input.currentText())
@@ -146,9 +147,9 @@ class BandaDialog(QDialog):
         layout.addWidget(self.escudo_label)
         layout.addWidget(self.escudo_input)
 
-        self.submit_button = QPushButton("Simular", self)
-        self.submit_button.clicked.connect(self.accept)
-        layout.addWidget(self.submit_button)
+        self.guardar_button = QPushButton("Guardar", self)
+        self.guardar_button.clicked.connect(self.accept)
+        layout.addWidget(self.guardar_button)
 
         self.setLayout(layout)
 
@@ -232,7 +233,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.ciudad = Ciudad()
-        self.ciudad.background = pygame.image.load('./data/image/cuidad.jpeg')
+        self.ciudad.background = pygame.image.load('./data/image/ciudad.jpeg')
 
         self.Camioneta = Vehiculo(id=1, tipo="camioneta", velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
         self.Blindado = Vehiculo(id=2, tipo="blindado", velocidad=1, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)

@@ -4,7 +4,7 @@ from collections import deque
 import networkx as nx
 
 from src.Botin import Vehiculo
-from view.Cuidad import Ciudad  
+from view.Ciudad import Ciudad  
 
 class Rutas:
     def __init__(self):

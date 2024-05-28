@@ -1,5 +1,4 @@
 # src/Botin.py
-import networkx as nx
 
 class CentroDeOperacion:
     def __init__(self, id, capacidad_dinero, capacidad_vehiculos, capacidad_escoltas):
@@ -40,7 +39,7 @@ class Vehiculo:
         self.ataque = ataque
         self.escoltas_necesarias = escoltas_necesarias
         self.contenedores_permitidos = self.establecer_contenedores_permitidos()
-
+        self.posicion = (139, 374) 
     def establecer_contenedores_permitidos(self):
         if self.tipo == "camioneta":
             return ["Tipo1", "Tipo2"]  # Ejemplo de contenedores permitidos para camioneta
@@ -51,6 +50,9 @@ class Vehiculo:
         
     def puede_llevar_contenedor(self, tipo_contenedor):
         return tipo_contenedor in self.contenedores_permitidos
+
+    def actualizar_posicion(self, nueva_posicion):
+            self.posicion = nueva_posicion
 
 class Escolta:
     def __init__(self, id, escudo, ataque):
@@ -80,6 +82,13 @@ class Puente:
     def __init__(self, id, peso_maximo):
         self.id = id
         self.peso_maximo = peso_maximo
+        self.colapsado = False
+
+    def puede_cruzar(self, peso_vehiculo):
+        return peso_vehiculo <= self.peso_maximo
+
+    def colapsar(self):
+        self.colapsado = True
 
 class BandaLadrones:
     def __init__(self, id):
