@@ -2,6 +2,7 @@
 import os
 import csv
 import pygame
+from src.Rutas import Rutas
 from src.Botin import Vehiculo
 from PySide6.QtCore import Signal
 from view.Ciudad import Ciudad, RenderThread
@@ -104,8 +105,6 @@ class RegistroWidget(QWidget):
         #         QMessageBox.warning(self, "Capacidad Insuficiente", "El vehículo seleccionado no tiene suficiente capacidad.")
         # else:
         #     QMessageBox.critical(self, "Error", "No se encontró una ruta válida o no se puede hacer a tiempo")
-        
-        # Limpiar campos después de guardar
     # Limpiar campos después de guardar
         self.origen_input.clear()
         self.cantidad_dinero_input.setCurrentIndex(0)
@@ -173,8 +172,10 @@ class BandaDialog(QDialog):
 class SimulacionDialogoWidget(QWidget):
     def __init__(self, parent=None):
         super(SimulacionDialogoWidget, self).__init__(parent)
+        self.clientes_datos = {}  # Inicializar el diccionario aquí
         self.init_ui()
-
+        self.cargar_datos_clientes() 
+        
     def init_ui(self):
         layout = QVBoxLayout()
 
@@ -195,7 +196,7 @@ class SimulacionDialogoWidget(QWidget):
     def simular_pygame(self):
         self.ciudad = Ciudad()
         self.ciudad.iniciar_pygame()
-
+        # llamar la funcion procesar_solicitudes de la clase ciudad
     
     def mostrar_banda(self):
         dialog = BandaDialog(self)
@@ -203,29 +204,74 @@ class SimulacionDialogoWidget(QWidget):
             ataque, escudo, cliente = dialog.get_values()
             QMessageBox.information(self, "Valores Seleccionados", f"Ataque: {ataque}, Escudo: {escudo}, Cliente: {cliente}")
 
-
     def generar_ruta(self):
         clientes = self.obtener_clientes_del_csv()
         if not clientes:
             QMessageBox.warning(self, "Advertencia", "No hay clientes registrados.")
             return
-        
-        cliente, Simular = QInputDialog.getItem(self, "Seleccionar Cliente", "Elige un cliente:", clientes, 0, False)
-        if Simular and cliente:
-            QMessageBox.information(self, "Cliente a simular", f"Simularas a: {cliente}")
 
-    def obtener_clientes_del_csv(self):
+        cliente, simular = QInputDialog.getItem(self, "Seleccionar Cliente", "Elige un cliente:", clientes, 0, False)
+        if simular and cliente:
+            QMessageBox.information(self, "Cliente a simular", f"Simularás a: {cliente}")
+
+            # Obtener los datos del cliente seleccionado
+            cantidad_dinero, destino, tiempo_estimado = self.obtener_datos_cliente(cliente)
+
+            # Crear una instancia de la clase Rutas
+            rutas = Rutas()
+
+            # Llamar al método planificar_ruta de la instancia rutas
+            mejor_ruta, mensaje = rutas.planificar_ruta(cliente, destino, cantidad_dinero, tiempo_estimado)
+
+            # Procesar el resultado obtenido
+            if mejor_ruta:
+                costo, camino = mejor_ruta
+                # Realizar las operaciones necesarias con el camino y el costo
+                print(f"Costo de la mejor ruta para el cliente {cliente}: {costo}")
+                print(f"Camino de la mejor ruta para el cliente {cliente}: {camino}")
+            else:
+                print(mensaje)
+
+    def cargar_datos_clientes(self):
         try:
             with open('./data/registro.csv', 'r') as file:
-                reader = csv.reader(file)
-                next(reader)  # Saltar el encabezado si lo hay
-                clientes = [row[0] for row in reader]  # Suponiendo que el nombre del cliente está en la primera columna
-            return clientes
+                reader = csv.DictReader(file)
+                for row in reader:
+                    nombre = row['Nombre']
+                    dinero_a_enviar = int(row['Dinero_a_enviar'])
+                    destino = row['Destino'].strip()  # Obtener destino como texto y quitar espacios innecesarios
+                    tiempo_estimado_texto = row['Tiempo_estimado'].strip()  # Obtener tiempo estimado como texto
+                    tiempo_estimado = self.convertir_tiempo_a_minutos(tiempo_estimado_texto)
+
+                    # Guardar los datos en el diccionario de clientes
+                    self.clientes_datos[nombre] = (dinero_a_enviar, destino, tiempo_estimado)
+
         except Exception as e:
             QMessageBox.critical(self, "Error al leer CSV", f"No se pudo leer el archivo CSV: {str(e)}")
-            return []
 
-       
+    def convertir_tiempo_a_minutos(self, tiempo_texto):
+        tiempo_texto = tiempo_texto.lower()  # Convertir texto a minúsculas para manejar diferentes casos
+        if tiempo_texto == "10 minutos":
+            return 10
+        elif tiempo_texto == "15 minutos":
+            return 15
+        elif tiempo_texto == "30 minutos":
+            return 30
+        elif tiempo_texto == "1 hora":
+            return 60
+        return 0  # Retornar 0 si el formato no coincide
+    
+    def obtener_clientes_del_csv(self):
+        return list(self.clientes_datos.keys())
+
+    def obtener_datos_cliente(self, cliente):
+        datos_cliente = self.clientes_datos.get(cliente)
+        if datos_cliente:
+            return datos_cliente
+        else:
+            QMessageBox.warning(self, "Cliente no encontrado", f"No se encontraron datos para el cliente '{cliente}'")
+            return 0, '', 0
+
 class MainWindow(QMainWindow):
     show_form_signal = Signal()
     show_simulation_dialog_signal = Signal()

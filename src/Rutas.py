@@ -1,14 +1,12 @@
 import heapq
-import csv
 from collections import deque
-import networkx as nx
-
 from src.Botin import Vehiculo
-from view.Ciudad import Ciudad  
+from view.Ciudad import Ciudad
 
 class Rutas:
     def __init__(self):
-        self.ciudad = Ciudad()  # Crear una instancia de la ciudad
+        self.ciudad = Ciudad()  
+        self.ciudad.iniciar_pygame()  # Asegúrate de que `iniciar_pygame` se llama para cargar imágenes y crear el grafo
 
     def planificar_ruta_bfs(self, origen, destino, vehiculo_seleccionado, tiempo_estimado):
         visitados = set()
@@ -30,7 +28,7 @@ class Rutas:
                     return float('inf'), []
 
             for vecino in self.ciudad.ciudad.neighbors(nodo_actual):
-                peso_max = self.ciudad.ciudad[nodo_actual][vecino]['peso_max']
+                peso_max = self.ciudad.ciudad[nodo_actual][vecino]['puente'].peso_max
                 if peso_max >= vehiculo_seleccionado.capacidad and vecino not in visitados:
                     if distancias[vecino] > distancias[nodo_actual] + 1:
                         distancias[vecino] = distancias[nodo_actual] + 1
@@ -58,7 +56,7 @@ class Rutas:
             if nodo_actual not in visitados:
                 visitados.add(nodo_actual)
                 for vecino in self.ciudad.ciudad.neighbors(nodo_actual):
-                    peso_max = self.ciudad.ciudad[nodo_actual][vecino]['peso_max']
+                    peso_max = self.ciudad.ciudad[nodo_actual][vecino]['puente'].peso_max
                     if peso_max >= vehiculo_seleccionado.capacidad and vecino not in visitados:
                         padre[vecino] = nodo_actual
                         stack.append(vecino)
@@ -85,7 +83,7 @@ class Rutas:
                 continue
 
             for vecino in self.ciudad.ciudad.neighbors(nodo_actual):
-                peso_max = self.ciudad.ciudad[nodo_actual][vecino]['peso_max']
+                peso_max = self.ciudad.ciudad[nodo_actual][vecino]['puente'].peso_max
                 if peso_max >= vehiculo_seleccionado.capacidad:
                     nueva_distancia = distancia_actual + 1
                     if nueva_distancia < distancias[vecino]:
@@ -103,7 +101,7 @@ class Rutas:
         for _ in range(len(self.ciudad.ciudad.nodes) - 1):
             for nodo in self.ciudad.ciudad.nodes:
                 for vecino in self.ciudad.ciudad.neighbors(nodo):
-                    peso_max = self.ciudad.ciudad[nodo][vecino]['peso_max']
+                    peso_max = self.ciudad.ciudad[nodo][vecino]['puente'].peso_max
                     if peso_max >= vehiculo_seleccionado.capacidad:
                         if distancias[nodo] + 1 < distancias[vecino]:
                             distancias[vecino] = distancias[nodo] + 1
@@ -118,30 +116,54 @@ class Rutas:
         else:
             return float('inf'), []
 
-    def planificar_ruta(self, cantidad_dinero, destino, tiempo_estimado):
-        origen = 'A'  # Origen por defecto
+    def planificar_ruta(self, nombre_cliente, destino, cantidad_dinero, tiempo_estimado):
         vehiculo_seleccionado = self.seleccionar_vehiculo(cantidad_dinero)
+        print(f"Planificando ruta para el cliente {nombre_cliente} con {cantidad_dinero} dinero")
 
-        rutas = {
-            'BFS': self.planificar_ruta_bfs(origen, destino, vehiculo_seleccionado, tiempo_estimado),
-            'DFS': self.planificar_ruta_dfs(origen, destino, vehiculo_seleccionado, tiempo_estimado),
-            'Dijkstra': self.planificar_ruta_dijkstra(origen, destino, vehiculo_seleccionado, tiempo_estimado),
-            'Bellman-Ford': self.planificar_ruta_bellman_ford(origen, destino, vehiculo_seleccionado, tiempo_estimado)
-        }
+        if isinstance(destino, str):
+            destinos = [d.strip() for d in destino.split(',')]
+        else:
+            destinos = destino
 
-        mejor_ruta = min(rutas.items(), key=lambda x: x[1][0])
+        mejores_rutas = {}
 
-        if mejor_ruta[1][0] == float('inf'):
-            return None, "No se puede llegar al destino en el tiempo estimado con ninguna ruta."
+        for destino in destinos:
+            if destino == "Dirección del Cliente":
+                origen = 'A'  
+                destino = 'K'
+            else:
+                origen = 'A'  
 
-        return mejor_ruta
+            rutas = {
+                'BFS': self.planificar_ruta_bfs(origen, destino, vehiculo_seleccionado, tiempo_estimado),
+                'DFS': self.planificar_ruta_dfs(origen, destino, vehiculo_seleccionado, tiempo_estimado),
+                'Dijkstra': self.planificar_ruta_dijkstra(origen, destino, vehiculo_seleccionado, tiempo_estimado),
+                'Bellman-Ford': self.planificar_ruta_bellman_ford(origen, destino, vehiculo_seleccionado, tiempo_estimado)
+            }
+
+            mejor_ruta = min(rutas.items(), key=lambda x: x[1][0])
+            if mejor_ruta[1][0] != float('inf'):
+                mejores_rutas[destino] = mejor_ruta
+
+        if not mejores_rutas:
+            return None, "No se puede llegar a ningún destino en el tiempo estimado con ninguna ruta."
+
+        mejor_ruta_global = min(mejores_rutas.values(), key=lambda x: x[1][0])
+        destino_mejor_ruta = [dest for dest, ruta in mejores_rutas.items() if ruta == mejor_ruta_global][0]
+
+        return mejor_ruta_global, f"La mejor ruta es para el destino {destino_mejor_ruta}"
 
     def seleccionar_vehiculo(self, cantidad_dinero):
-        if cantidad_dinero <= 500:
-            return Vehiculo(id='Camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
+        if isinstance(cantidad_dinero, int):
+            if cantidad_dinero <= 500:
+                return Vehiculo(id='Camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
+            else:
+                return Vehiculo(id='Blindado', tipo='blindado', velocidad=1, capacidad=2000, escudo=20, ataque=15, escoltas_necesarias=2)
         else:
-            return Vehiculo(id='Blindado', tipo='blindado', velocidad=1, capacidad=2000, escudo=20, ataque=15, escoltas_necesarias=2)
+            raise ValueError("El valor de cantidad_dinero debe ser un entero")
 
+        print(f"seleccionar vehiculo: {cantidad_dinero}")
+    
     def calcular_costo(self, camino):
         return len(camino) - 1
 
@@ -154,47 +176,3 @@ class Rutas:
         camino.append(origen)
         camino.reverse()
         return camino
-
-    def procesar_solicitudes(self, archivo_entrada, archivo_salida):
-        with open(archivo_entrada, newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            resultados = []
-            for row in reader:
-                nombre_cliente = row['Nombre']
-                cantidad_dinero = int(row['Dinero_a_enviar'])
-                destino = row['Destino']
-                tiempo_estimado = int(row['Tiempo_estimado'].split()[0])  # Convertir tiempo estimado a minutos
-
-                if destino.lower() == "dirección del cliente":
-                    destino = 'K'  # Destino por defecto
-
-                resultado = self.planificar_ruta(cantidad_dinero, destino, tiempo_estimado)
-
-                if resultado[0] is None:
-                    resultados.append({
-                        'nombre_cliente': nombre_cliente,
-                        'origen': 'A',
-                        'destino': destino,
-                        'cantidad_dinero': cantidad_dinero,
-                        'vehiculo': 'N/A',
-                        'ruta': 'No es posible llegar en el tiempo estimado',
-                        'costo': 'N/A'
-                    })
-                else:
-                    nombre_algoritmo, (costo, ruta) = resultado
-                    resultados.append({
-                        'nombre_cliente': nombre_cliente,
-                        'origen': 'A',
-                        'destino': destino,
-                        'cantidad_dinero': cantidad_dinero,
-                        'vehiculo': self.seleccionar_vehiculo(cantidad_dinero).id,
-                        'ruta': ' -> '.join(ruta),
-                        'costo': costo
-                    })
-
-        with open(archivo_salida, 'w', newline='') as csvfile:
-            fieldnames = ['nombre_cliente', 'origen', 'destino', 'cantidad_dinero', 'vehiculo', 'ruta', 'costo']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            for resultado in resultados:
-                writer.writerow(resultado)
