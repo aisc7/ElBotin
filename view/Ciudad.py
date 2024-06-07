@@ -58,9 +58,12 @@ class Ciudad:
                 self.imagenes_personajes[nombre_personaje] = None
 
     def crear_grafo(self):
-        # Definir los puentes (esto puede estar definido en otro lugar, asegúrate de tener acceso)
+        capacidad_camioneta = 500
+        capacidad_blindado = 2500
+        
+    # Definir los puentes (esto puede estar definido en otro lugar, asegúrate de tener acceso)
         puentes = {
-            'A': Puente(id='A', peso_maximo=500),
+            'A': Puente(id='A', peso_maximo=2500),
             'B': Puente(id='B', peso_maximo=2500),
             'C': Puente(id='C', peso_maximo=500),
             'D': Puente(id='D', peso_maximo=2500),
@@ -102,20 +105,34 @@ class Ciudad:
             ('L', 'K'): [(663, 824), (663, 852), (712, 856), (715, 902), (956, 902), (965, 740)],
         }
 
-        # Agregar nodos con posiciones y puentes al grafo
         for nodo, (x, y) in self.posiciones_nodos.items():
             puente = puentes.get(nodo, None)  # Obtener el puente correspondiente al nodo
             self.ciudad.add_node(nodo, pos=(x, y), puente=puente)
             print(f"Nodo agregado: {nodo} con posición {(x, y)} y puente {puente}")
 
-        # Definir las aristas entre los nodos según los caminos detallados
         for (nodo1, nodo2), camino in self.caminos_detallados.items():
             if nodo1 in self.ciudad.nodes and nodo2 in self.ciudad.nodes:
-                self.ciudad.add_edge(nodo1, nodo2, weight=len(camino))
-                print(f"Arista agregada entre {nodo1} y {nodo2} con peso {len(camino)}")
+                peso_max = min(puentes[nodo1].peso_maximo, puentes[nodo2].peso_maximo)
+                peso_arista = max(1, peso_max // capacidad_camioneta)  # Aquí debes usar la capacidad del vehículo adecuado
+                puente = puentes.get(nodo1)  # Suponiendo que usas el puente del nodo inicial
+                self.ciudad.add_edge(nodo1, nodo2, weight=peso_arista, puente=puente)
+                print(f"Arista agregada entre {nodo1} y {nodo2} con peso {peso_arista} y puente {puente}")
             else:
                 print(f"Error: Nodo {nodo1} o Nodo {nodo2} no está presente en el grafo.")
 
+    def procesar_solicitudes(self, nombre,dinero_a_enviar,destino,tiempo_estimado):
+        # Llamar a planificar_ruta para obtener los resultados
+        mejor_ruta, mensaje = self.planificar_ruta(self, nombre,dinero_a_enviar,destino,tiempo_estimado)
+        
+        if mejor_ruta:
+            vehiculo = mejor_ruta[0]
+            costo = mejor_ruta[1][0]
+            print(f"Vehículo seleccionado: {vehiculo.id}")
+            print(f"Mejor ruta: {mejor_ruta[1][1]}")
+            print(f"Costo de la ruta: {costo}")
+            print(mensaje)
+        else:
+            print(mensaje)
 
     def dibujar(self, screen):
         screen.blit(self.background, (0, 0))

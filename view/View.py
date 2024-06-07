@@ -4,12 +4,30 @@ import csv
 import pygame
 from src.Rutas import Rutas
 from src.Botin import Vehiculo
-from PySide6.QtCore import Signal
-from view.Ciudad import Ciudad, RenderThread
+from PySide6.QtCore import Signal 
+from view.Ciudad import Ciudad
+from PySide6.QtGui import QPixmap, QPalette, QBrush
 from PySide6.QtWidgets import QApplication,QDialog,QInputDialog,QMessageBox,QAbstractItemView, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton
 
+class HomePageWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.init_ui()
 
+    def init_ui(self):
+        # Cargar la imagen de fondo
+        image_path = './data/image/HomePage.jpeg'
+        pixmap = QPixmap(image_path)
 
+        # Verificar si el QPixmap es válido
+        if pixmap.isNull():
+            print(f"Could not load image from {image_path}")
+        else:
+            # Establecer el QPixmap como fondo del widget
+            palette = QPalette()
+            palette.setBrush(QPalette.Window, QBrush(pixmap))
+            self.setPalette(palette)
+            self.setAutoFillBackground(True)
 class RegistroWidget(QWidget):
     def __init__(self, ciudad, parent=None):
         super(RegistroWidget, self).__init__(parent)
@@ -78,8 +96,10 @@ class RegistroWidget(QWidget):
         if destino == "Entre varios clientes":
             destinos = [item.text() for item in self.lista_destinos.selectedItems()]
             destino = ", ".join(destinos)
+        elif destino == "Dirección del Cliente":
+            destino = "A,K"  # Asigna directamente "A,K" como destino
 
-      # Guardar en CSV
+        # Guardar en CSV
         file_path = './data/registro.csv'
         file_exists = os.path.isfile(file_path)
 
@@ -93,7 +113,7 @@ class RegistroWidget(QWidget):
             QMessageBox.critical(self, "Error al guardar", f"No se pudo guardar en el archivo CSV: {str(e)}")
             return
 
-    # Mostrar alerta de guardado exitoso
+        # Mostrar alerta de guardado exitoso
         QMessageBox.information(self, "Guardado Exitoso", "Los datos han sido guardados correctamente en el archivo CSV.")
 
         
@@ -186,18 +206,14 @@ class SimulacionDialogoWidget(QWidget):
         self.boton_banda = QPushButton("Banda")
         self.boton_banda.clicked.connect(self.mostrar_banda)
         layout.addWidget(self.boton_banda)
-        
-        self.boton_simular = QPushButton("Simular")
-        self.boton_simular.clicked.connect(self.simular_pygame)
-        layout.addWidget(self.boton_simular)
-
+   
         self.setLayout(layout)
 
     def simular_pygame(self):
         self.ciudad = Ciudad()
         self.ciudad.iniciar_pygame()
-        # llamar la funcion procesar_solicitudes de la clase ciudad
-    
+
+
     def mostrar_banda(self):
         dialog = BandaDialog(self)
         if dialog.exec():
@@ -215,13 +231,13 @@ class SimulacionDialogoWidget(QWidget):
             QMessageBox.information(self, "Cliente a simular", f"Simularás a: {cliente}")
 
             # Obtener los datos del cliente seleccionado
-            cantidad_dinero, destino, tiempo_estimado = self.obtener_datos_cliente(cliente)
+            dinero_a_enviar, destino, tiempo_estimado = self.obtener_datos_cliente(cliente)
 
             # Crear una instancia de la clase Rutas
             rutas = Rutas()
 
             # Llamar al método planificar_ruta de la instancia rutas
-            mejor_ruta, mensaje = rutas.planificar_ruta(cliente, destino, cantidad_dinero, tiempo_estimado)
+            mejor_ruta, mensaje = rutas.planificar_ruta(cliente, destino, dinero_a_enviar, tiempo_estimado)
 
             # Procesar el resultado obtenido
             if mejor_ruta:
@@ -239,7 +255,7 @@ class SimulacionDialogoWidget(QWidget):
                 for row in reader:
                     nombre = row['Nombre']
                     dinero_a_enviar = int(row['Dinero_a_enviar'])
-                    destino = row['Destino'].strip()  # Obtener destino como texto y quitar espacios innecesarios
+                    destino = row['Destino'].strip().split(',')  # Convertir destino en una lista de destinos
                     tiempo_estimado_texto = row['Tiempo_estimado'].strip()  # Obtener tiempo estimado como texto
                     tiempo_estimado = self.convertir_tiempo_a_minutos(tiempo_estimado_texto)
 
@@ -248,7 +264,7 @@ class SimulacionDialogoWidget(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Error al leer CSV", f"No se pudo leer el archivo CSV: {str(e)}")
-
+    
     def convertir_tiempo_a_minutos(self, tiempo_texto):
         tiempo_texto = tiempo_texto.lower()  # Convertir texto a minúsculas para manejar diferentes casos
         if tiempo_texto == "10 minutos":
@@ -290,16 +306,18 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Simulación de Rutas")
 
         # Establecer tamaño de la ventana
-        self.resize(800, 800)
+        self.resize(900, 935)
 
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
 
         # Crear las pestañas
+        self.HomePage = HomePageWidget() 
         self.registro_tab = RegistroWidget(self.ciudad)
         self.simulacion_dialogo_tab = SimulacionDialogoWidget()
       
         # Añadir las pestañas al widget de pestañas
+        self.tabs.addTab(self.HomePage, "HomePage")
         self.tabs.addTab(self.registro_tab, "Registro")
         self.tabs.addTab(self.simulacion_dialogo_tab, "Ajustes de Simulación")
         

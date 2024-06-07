@@ -13,17 +13,14 @@ class RenderThread(QThread):
     def run(self):
         pygame.init()
         screen = pygame.display.set_mode((1100, 1000))
-        pygame.display.set_caption("SImulacion")
+        pygame.display.set_caption("Rutas")
 
         self.running = True
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    x, y = pygame.mouse.get_pos()
-                    print(f"Click en la posición ({x}, {y})")
-                    
+               
             # Dibujar el fondo de la ciudad en la ventana de Pygame
             screen.blit(self.ciudad.background, (0, 0))
             

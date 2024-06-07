@@ -5,9 +5,9 @@ from view.Ciudad import Ciudad
 
 class Rutas:
     def __init__(self):
-        self.ciudad = Ciudad()  
+        self.ciudad = Ciudad()
         self.ciudad.iniciar_pygame()  # Asegúrate de que `iniciar_pygame` se llama para cargar imágenes y crear el grafo
-
+   
     def planificar_ruta_bfs(self, origen, destino, vehiculo_seleccionado, tiempo_estimado):
         visitados = set()
         padre = {}
@@ -28,8 +28,7 @@ class Rutas:
                     return float('inf'), []
 
             for vecino in self.ciudad.ciudad.neighbors(nodo_actual):
-                peso_max = self.ciudad.ciudad[nodo_actual][vecino]['puente'].peso_max
-                if peso_max >= vehiculo_seleccionado.capacidad and vecino not in visitados:
+                if self.puente_dispo(nodo_actual, vecino, vehiculo_seleccionado) and vecino not in visitados:
                     if distancias[vecino] > distancias[nodo_actual] + 1:
                         distancias[vecino] = distancias[nodo_actual] + 1
                         padre[vecino] = nodo_actual
@@ -56,8 +55,7 @@ class Rutas:
             if nodo_actual not in visitados:
                 visitados.add(nodo_actual)
                 for vecino in self.ciudad.ciudad.neighbors(nodo_actual):
-                    peso_max = self.ciudad.ciudad[nodo_actual][vecino]['puente'].peso_max
-                    if peso_max >= vehiculo_seleccionado.capacidad and vecino not in visitados:
+                    if self.puente_dispo(nodo_actual, vecino, vehiculo_seleccionado) and vecino not in visitados:
                         padre[vecino] = nodo_actual
                         stack.append(vecino)
 
@@ -83,9 +81,8 @@ class Rutas:
                 continue
 
             for vecino in self.ciudad.ciudad.neighbors(nodo_actual):
-                peso_max = self.ciudad.ciudad[nodo_actual][vecino]['puente'].peso_max
-                if peso_max >= vehiculo_seleccionado.capacidad:
-                    nueva_distancia = distancia_actual + 1
+                if self.puente_dispo(nodo_actual, vecino, vehiculo_seleccionado):
+                    nueva_distancia = distancia_actual + self.ciudad.ciudad[nodo_actual][vecino]['weight']
                     if nueva_distancia < distancias[vecino]:
                         distancias[vecino] = nueva_distancia
                         padre[vecino] = nodo_actual
@@ -101,10 +98,9 @@ class Rutas:
         for _ in range(len(self.ciudad.ciudad.nodes) - 1):
             for nodo in self.ciudad.ciudad.nodes:
                 for vecino in self.ciudad.ciudad.neighbors(nodo):
-                    peso_max = self.ciudad.ciudad[nodo][vecino]['puente'].peso_max
-                    if peso_max >= vehiculo_seleccionado.capacidad:
-                        if distancias[nodo] + 1 < distancias[vecino]:
-                            distancias[vecino] = distancias[nodo] + 1
+                    if self.puente_dispo(nodo, vecino, vehiculo_seleccionado):
+                        if distancias[nodo] + self.ciudad.ciudad[nodo][vecino]['weight'] < distancias[vecino]:
+                            distancias[vecino] = distancias[nodo] + self.ciudad.ciudad[nodo][vecino]['weight']
                             padre[vecino] = nodo
 
         if distancias[destino] == float('inf'):
@@ -116,63 +112,71 @@ class Rutas:
         else:
             return float('inf'), []
 
-    def planificar_ruta(self, nombre_cliente, destino, cantidad_dinero, tiempo_estimado):
-        vehiculo_seleccionado = self.seleccionar_vehiculo(cantidad_dinero)
-        print(f"Planificando ruta para el cliente {nombre_cliente} con {cantidad_dinero} dinero")
+    def puente_dispo(self, nodo_actual, vecino, vehiculo_seleccionado):
+        nodo_actual_data = self.ciudad.ciudad.nodes[nodo_actual]
+        nodo_vecino_data = self.ciudad.ciudad.nodes[vecino]
 
-        if isinstance(destino, str):
-            destinos = [d.strip() for d in destino.split(',')]
-        else:
-            destinos = destino
+        puente_actual = nodo_actual_data.get('puente', None)
+        puente_vecino = nodo_vecino_data.get('puente', None)
 
-        mejores_rutas = {}
-
-        for destino in destinos:
-            if destino == "Dirección del Cliente":
-                origen = 'A'  
-                destino = 'K'
-            else:
-                origen = 'A'  
-
-            rutas = {
-                'BFS': self.planificar_ruta_bfs(origen, destino, vehiculo_seleccionado, tiempo_estimado),
-                'DFS': self.planificar_ruta_dfs(origen, destino, vehiculo_seleccionado, tiempo_estimado),
-                'Dijkstra': self.planificar_ruta_dijkstra(origen, destino, vehiculo_seleccionado, tiempo_estimado),
-                'Bellman-Ford': self.planificar_ruta_bellman_ford(origen, destino, vehiculo_seleccionado, tiempo_estimado)
-            }
-
-            mejor_ruta = min(rutas.items(), key=lambda x: x[1][0])
-            if mejor_ruta[1][0] != float('inf'):
-                mejores_rutas[destino] = mejor_ruta
-
-        if not mejores_rutas:
-            return None, "No se puede llegar a ningún destino en el tiempo estimado con ninguna ruta."
-
-        mejor_ruta_global = min(mejores_rutas.values(), key=lambda x: x[1][0])
-        destino_mejor_ruta = [dest for dest, ruta in mejores_rutas.items() if ruta == mejor_ruta_global][0]
-
-        return mejor_ruta_global, f"La mejor ruta es para el destino {destino_mejor_ruta}"
-
-    def seleccionar_vehiculo(self, cantidad_dinero):
-        if isinstance(cantidad_dinero, int):
-            if cantidad_dinero <= 500:
-                return Vehiculo(id='Camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
-            else:
-                return Vehiculo(id='Blindado', tipo='blindado', velocidad=1, capacidad=2000, escudo=20, ataque=15, escoltas_necesarias=2)
-        else:
-            raise ValueError("El valor de cantidad_dinero debe ser un entero")
-
-        print(f"seleccionar vehiculo: {cantidad_dinero}")
+        if puente_actual and puente_vecino:
+            peso_max = min(puente_actual.peso_maximo, puente_vecino.peso_maximo)
+            if peso_max >= vehiculo_seleccionado.capacidad:
+                return True
+        return False
     
-    def calcular_costo(self, camino):
-        return len(camino) - 1
+    def planificar_ruta(self, nombre, destino, dinero_a_enviar, tiempo_estimado):
+        vehiculo_seleccionado = self.asignar_vehiculo(dinero_a_enviar)
+        print(f"Planificando ruta para el cliente {nombre} con {dinero_a_enviar} dinero")
 
+        # Verificar si el destino es una lista y unirla en una cadena si es necesario
+        if isinstance(destino, list):
+            destino = ','.join(destino)
+
+        # Obtener el origen y el destino
+        destino_limpio = destino.replace(" ", "").split(",")
+        origen = destino_limpio[0]
+        destino_final = destino_limpio[1]
+
+        rutas = {
+            'BFS': self.planificar_ruta_bfs(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado),
+            'DFS': self.planificar_ruta_dfs(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado),
+            'Dijkstra': self.planificar_ruta_dijkstra(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado),
+            'Bellman-Ford': self.planificar_ruta_bellman_ford(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado)
+        }
+
+        # Encontrar la mejor ruta basada en el tiempo estimado
+        mejor_ruta = min(rutas.items(), key=lambda x: x[1][0])
+
+        if mejor_ruta[1][0] != float('inf'):
+            return mejor_ruta, f"La mejor ruta es para el destino {destino_final.strip()}"
+        else:
+            return None, "No se puede llegar al destino en el tiempo estimado con ninguna ruta."
+
+    def asignar_vehiculo(self, dinero_a_enviar):
+        if isinstance(dinero_a_enviar, int):
+            if dinero_a_enviar <= 500:
+                vehiculo = Vehiculo(id='Camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
+            else:
+                vehiculo = Vehiculo(id='Blindado', tipo='blindado', velocidad=1, capacidad=2000, escudo=20, ataque=15, escoltas_necesarias=2)
+            
+            # Imprimir los detalles del vehículo seleccionado
+            print(f"Vehículo seleccionado para enviar {dinero_a_enviar} dinero: {vehiculo.id}, Tipo: {vehiculo.tipo}, Velocidad: {vehiculo.velocidad}, Capacidad: {vehiculo.capacidad}")
+
+            return vehiculo
+
+    def calcular_costo(self, camino):
+        costo_total = 0
+        for i in range(len(camino) - 1):
+            nodo_actual = camino[i]
+            nodo_siguiente = camino[i + 1]
+            peso_arista = self.ciudad.ciudad[nodo_actual][nodo_siguiente]['weight']
+            costo_total += peso_arista
+        return costo_total
+        
     def construir_camino(self, padre, origen, destino):
-        camino = []
-        nodo_actual = destino
-        while nodo_actual in padre:
-            camino.append(nodo_actual)
-            nodo_actual = padre[nodo_actual]
-        camino.append(origen)
+        camino = [destino]
+        while camino[-1] != origen:
+            camino.append(padre[camino[-1]])
         camino.reverse()
         return camino
