@@ -3,7 +3,7 @@
 class CentroDeOperacion:
     def __init__(self, id, capacidad_dinero, capacidad_vehiculos, capacidad_escoltas):
         self.id = id
-        self.capacidad_dinero = 10.000
+        self.capacidad_dinero = 10000
         self.capacidad_vehiculos = 7
         self.capacidad_escoltas = 10
         self.dinero = 0
@@ -30,16 +30,17 @@ class Cliente:
         self.dinero = 0
 
 class Vehiculo:
-    def __init__(self, id, tipo, velocidad, capacidad, escudo, ataque, escoltas_necesarias):
+    def __init__(self, id, tipo, velocidad, capacidad, escudo, ataque, escoltas_necesarias, ruta_imagen=None):
         self.id = id
         self.tipo = tipo
-        self.velocidad = velocidad
-        self.capacidad = capacidad
         self.escudo = escudo
         self.ataque = ataque
+        self.ruta_imagen = ruta_imagen
+        self.velocidad = velocidad
+        self.capacidad = capacidad
         self.escoltas_necesarias = escoltas_necesarias
         self.contenedores_permitidos = self.establecer_contenedores_permitidos()
-        self.posicion = (139, 374) 
+        
     def establecer_contenedores_permitidos(self):
         if self.tipo == "camioneta":
             return ["Tipo1", "Tipo2"]  # Ejemplo de contenedores permitidos para camioneta
@@ -50,9 +51,6 @@ class Vehiculo:
         
     def puede_llevar_contenedor(self, tipo_contenedor):
         return tipo_contenedor in self.contenedores_permitidos
-
-    def actualizar_posicion(self, nueva_posicion):
-            self.posicion = nueva_posicion
 
 class Escolta:
     def __init__(self, id, escudo, ataque):
@@ -90,6 +88,11 @@ class Puente:
     def colapsar(self):
         self.colapsado = True
 
-class BandaLadrones:
-    def __init__(self, id):
-        self.id = id
+class Ladrones:
+        def __init__(self, id, velocidad, capacidad, escudo, ataque, escoltas_necesarias):
+            self.id = id
+            self.velocidad = velocidad
+            self.capacidad = capacidad
+            self.escudo = escudo
+            self.ataque = ataque
+            self.escoltas_necesarias = escoltas_necesarias

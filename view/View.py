@@ -28,6 +28,7 @@ class HomePageWidget(QWidget):
             palette.setBrush(QPalette.Window, QBrush(pixmap))
             self.setPalette(palette)
             self.setAutoFillBackground(True)
+
 class RegistroWidget(QWidget):
     def __init__(self, ciudad, parent=None):
         super(RegistroWidget, self).__init__(parent)
@@ -132,7 +133,6 @@ class RegistroWidget(QWidget):
         self.tiempo_estimado_input.setCurrentIndex(0)
         self.lista_destinos.clearSelection()
 
-
 class BandaDialog(QDialog):
     def __init__(self, parent=None):
         super(BandaDialog, self).__init__(parent)
@@ -142,26 +142,27 @@ class BandaDialog(QDialog):
         self.setWindowTitle("Configuración de la Banda")
         self.resize(400, 300)
         layout = QVBoxLayout()
+
+        # Aquí defines los combos para ataque y escudo
+        self.cliente_input = QComboBox(self)
         clientes = self.obtener_clientes_del_csv()
         if not clientes:
             QMessageBox.warning(self, "Advertencia", "No hay clientes registrados.")
             return
-
-        self.cliente_input = QComboBox(self)
         self.cliente_input.addItems(clientes)
         layout.addWidget(QLabel("Seleccionar Cliente"))
         layout.addWidget(self.cliente_input)
 
         self.ataque_label = QLabel("Ataque")
         self.ataque_input = QComboBox(self)
-        ataque_opciones = [str(i) for i in range(5, 35, 5)]  # Opciones de ataque: 5, 10, 15, 20, 25, 30
+        ataque_opciones = [str(i) for i in range(5, 45, 5)]  # Opciones de ataque: 5, 10, 15, 20, 25, 30
         self.ataque_input.addItems(ataque_opciones)
         layout.addWidget(self.ataque_label)
         layout.addWidget(self.ataque_input)
 
         self.escudo_label = QLabel("Escudo")
         self.escudo_input = QComboBox(self)
-        escudo_opciones = [str(i) for i in range(5, 45, 5)]  # Opciones de escudo: 5, 10, 15, 20, 25, 30, 35, 40
+        escudo_opciones = [str(i) for i in range(5, 50, 5)]  # Opciones de escudo: 5, 10, 15, 20, 25, 30, 35, 40
         self.escudo_input.addItems(escudo_opciones)
         layout.addWidget(self.escudo_label)
         layout.addWidget(self.escudo_input)
@@ -173,11 +174,11 @@ class BandaDialog(QDialog):
         self.setLayout(layout)
 
     def get_values(self):
-        ataque = int(self.ataque_input.currentText())
-        escudo = int(self.escudo_input.currentText())
+        ataque_ladrones= int(self.ataque_input.currentText())
+        escudo_ladrones = int(self.escudo_input.currentText())
         cliente = self.cliente_input.currentText()
-        return ataque, escudo, cliente
-
+        return  ataque_ladrones, escudo_ladrones, cliente
+    
     def obtener_clientes_del_csv(self):
         try:
             with open('./data/registro.csv', 'r') as file:
@@ -188,6 +189,7 @@ class BandaDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Error al leer CSV", f"No se pudo leer el archivo CSV: {str(e)}")
             return []
+
 
 class SimulacionDialogoWidget(QWidget):
     def __init__(self, parent=None):
@@ -204,7 +206,7 @@ class SimulacionDialogoWidget(QWidget):
         layout.addWidget(self.boton_generar_ruta)
 
         self.boton_banda = QPushButton("Banda")
-        self.boton_banda.clicked.connect(self.mostrar_banda)
+        self.boton_banda.clicked.connect(self.simular_banda)
         layout.addWidget(self.boton_banda)
    
         self.setLayout(layout)
@@ -213,13 +215,36 @@ class SimulacionDialogoWidget(QWidget):
         self.ciudad = Ciudad()
         self.ciudad.iniciar_pygame()
 
+    def simular_banda(self):
+        banda_dialog = BandaDialog(self)
+        if banda_dialog.exec_():
+            ataque_ladrones, escudo_ladrones, cliente = banda_dialog.get_values()
 
-    def mostrar_banda(self):
-        dialog = BandaDialog(self)
-        if dialog.exec():
-            ataque, escudo, cliente = dialog.get_values()
-            QMessageBox.information(self, "Valores Seleccionados", f"Ataque: {ataque}, Escudo: {escudo}, Cliente: {cliente}")
+        # Obtener los datos del cliente seleccionado
+        dinero_a_enviar, destino, tiempo_estimado = self.obtener_datos_cliente(cliente)
 
+        # Crear una instancia de la clase Rutas
+        rutas = Rutas()
+
+        # Llamar al método planificar_ruta de la instancia rutas
+        mejor_ruta, mensaje = rutas.planificar_ruta(cliente, destino, dinero_a_enviar, tiempo_estimado)
+
+        # Procesar el resultado obtenido
+        if mejor_ruta:
+            costo, camino = mejor_ruta
+            # Realizar las operaciones necesarias con el camino y el costo
+            print(f"Costo de la mejor ruta para el cliente {cliente}: {costo}")
+            print(f"Camino de la mejor ruta para el cliente {cliente}: {camino}")
+
+            # Obtener el vehículo asignado
+            vehiculo_asignado = rutas.asignar_vehiculo(dinero_a_enviar)
+
+            # Llamar al método de simulación de ladrones con los datos obtenidos
+            resultado, mensaje = rutas.ladrones(cliente, vehiculo_asignado, mejor_ruta, dinero_a_enviar, tiempo_estimado, ataque_ladrones, escudo_ladrones)
+            QMessageBox.information(self, "Resultado de la Simulación", mensaje)
+        else:
+            QMessageBox.warning(self, "Sin Vehículo Asignado", f"No se encontró un vehículo asignado para el cliente {cliente}.")
+        
     def generar_ruta(self):
         clientes = self.obtener_clientes_del_csv()
         if not clientes:

@@ -1,13 +1,14 @@
+#src/Rutas.py
 import heapq
 from collections import deque
-from src.Botin import Vehiculo
+from src.Botin import Vehiculo, Ladrones
 from view.Ciudad import Ciudad
 
 class Rutas:
     def __init__(self):
         self.ciudad = Ciudad()
         self.ciudad.iniciar_pygame()  # Asegúrate de que `iniciar_pygame` se llama para cargar imágenes y crear el grafo
-   
+
     def planificar_ruta_bfs(self, origen, destino, vehiculo_seleccionado, tiempo_estimado):
         visitados = set()
         padre = {}
@@ -133,38 +134,67 @@ class Rutas:
         if isinstance(destino, list):
             destino = ','.join(destino)
 
-        # Obtener el origen y el destino
-        destino_limpio = destino.replace(" ", "").split(",")
-        origen = destino_limpio[0]
-        destino_final = destino_limpio[1]
+        # Obtener la lista de paradas
+        destinos = destino.replace(" ", "").split(",")
 
         rutas = {
-            'BFS': self.planificar_ruta_bfs(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado),
-            'DFS': self.planificar_ruta_dfs(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado),
-            'Dijkstra': self.planificar_ruta_dijkstra(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado),
-            'Bellman-Ford': self.planificar_ruta_bellman_ford(origen.strip(), destino_final.strip(), vehiculo_seleccionado, tiempo_estimado)
+            'BFS': self.planificar_ruta_con_paradas(self.planificar_ruta_bfs, destinos, vehiculo_seleccionado, tiempo_estimado),
+            'DFS': self.planificar_ruta_con_paradas(self.planificar_ruta_dfs, destinos, vehiculo_seleccionado, tiempo_estimado),
+            'Dijkstra': self.planificar_ruta_con_paradas(self.planificar_ruta_dijkstra, destinos, vehiculo_seleccionado, tiempo_estimado),
+            'Bellman-Ford': self.planificar_ruta_con_paradas(self.planificar_ruta_bellman_ford, destinos, vehiculo_seleccionado, tiempo_estimado)
         }
 
         # Encontrar la mejor ruta basada en el tiempo estimado
         mejor_ruta = min(rutas.items(), key=lambda x: x[1][0])
 
         if mejor_ruta[1][0] != float('inf'):
-            return mejor_ruta, f"La mejor ruta es para el destino {destino_final.strip()}"
+            return mejor_ruta, f"La mejor ruta es para el destino {destinos[-1]}"
         else:
             return None, "No se puede llegar al destino en el tiempo estimado con ninguna ruta."
+
+    def planificar_ruta_con_paradas(self, metodo_planificacion, destinos, vehiculo_seleccionado, tiempo_estimado):
+        origen = destinos[0]
+        paradas = destinos[1:-1]
+        destino_final = destinos[-1]
+
+        tiempo_total = 0
+        camino_completo = []
+
+        nodo_actual = origen
+        for parada in paradas + [destino_final]:
+            costo, camino = metodo_planificacion(nodo_actual, parada, vehiculo_seleccionado, tiempo_estimado)
+            if costo == float('inf'):
+                return float('inf'), []
+
+            tiempo_total += costo
+            if camino_completo:
+                camino_completo.extend(camino[1:])
+            else:
+                camino_completo.extend(camino)
+
+            nodo_actual = parada
+
+        if tiempo_total <= tiempo_estimado:
+            return tiempo_total, camino_completo
+        else:
+            return float('inf'), []
 
     def asignar_vehiculo(self, dinero_a_enviar):
         if isinstance(dinero_a_enviar, int):
             if dinero_a_enviar <= 500:
-                vehiculo = Vehiculo(id='Camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
+                vehiculo = Vehiculo(id='camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
             else:
-                vehiculo = Vehiculo(id='Blindado', tipo='blindado', velocidad=1, capacidad=2000, escudo=20, ataque=15, escoltas_necesarias=2)
+                vehiculo = Vehiculo(id='blindado', tipo='blindado', velocidad=1, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)
             
             # Imprimir los detalles del vehículo seleccionado
             print(f"Vehículo seleccionado para enviar {dinero_a_enviar} dinero: {vehiculo.id}, Tipo: {vehiculo.tipo}, Velocidad: {vehiculo.velocidad}, Capacidad: {vehiculo.capacidad}")
-
+            
             return vehiculo
 
+        print(f"Error: dinero_a_enviar no es un entero válido: {dinero_a_enviar}")
+        return None
+
+        
     def calcular_costo(self, camino):
         costo_total = 0
         for i in range(len(camino) - 1):
@@ -180,3 +210,39 @@ class Rutas:
             camino.append(padre[camino[-1]])
         camino.reverse()
         return camino
+        
+    def ladrones(self, cliente, vehiculo_asignado, mejor_ruta_cliente, dinero_a_enviar, tiempo_estimado, ataque_ladrones, escudo_ladrones):
+        # Verificar que el vehículo asignado sea un blindado
+        if vehiculo_asignado.tipo != "blindado":
+            return False, "El vehículo no es un blindado. No hay ataque posible."
+
+        # Obtener el destino del cliente
+        destino_cliente = cliente if isinstance(cliente, str) else cliente.destino
+
+        # Obtener la ruta del cliente
+        distancia_cliente, ruta_cliente = mejor_ruta_cliente[1]
+        print(f"Camino de la mejor ruta para el cliente {destino_cliente}: ({distancia_cliente}, {ruta_cliente})")
+
+        # Buscar un punto de interceptación en la ruta del cliente
+        punto_intercepcion = ruta_cliente[len(ruta_cliente) // 2]
+
+        # Planificar la ruta de los ladrones al punto de interceptación
+        origen_ladrones = "Inicio de los ladrones"
+        vehiculo_ladrones = Vehiculo(id='camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
+        mejor_ruta_ladrones, mensaje_ladrones = self.planificar_ruta(origen_ladrones, punto_intercepcion, 2400, tiempo_estimado)
+        if not mejor_ruta_ladrones:
+            return False, "No se encontró una ruta válida para los ladrones. " + mensaje_ladrones
+
+        distancia_ladrones, ruta_ladrones = mejor_ruta_ladrones[1]
+        print(f"Camino de los ladrones hacia el punto de interceptación: ({distancia_ladrones}, {ruta_ladrones})")
+
+        # Calcular el poder de ataque y escudo del vehículo asignado
+        poder_ataque_total = vehiculo_asignado.ataque + (5 * vehiculo_asignado.escoltas_necesarias)
+        poder_escudo_total = vehiculo_asignado.escudo + (5 * vehiculo_asignado.escoltas_necesarias)
+
+        if ataque_ladrones > poder_escudo_total:
+            return True, f"La banda de ladrones ha tenido éxito en atacar a {destino_cliente} con un ataque de {ataque_ladrones} y un escudo de {escudo_ladrones}. El poder de escudo del vehículo asignado era {poder_escudo_total}."
+        else:
+            return False, f"La banda de ladrones no pudo atacar a {destino_cliente}. El poder de escudo del vehículo asignado era {poder_escudo_total}, que es suficiente para defenderse del ataque de {ataque_ladrones}."
+    def obtener_informacion_banda(self, ataque, escudo):
+        return f"Ataque de la banda: {ataque}, Escudo de la banda: {escudo}"
