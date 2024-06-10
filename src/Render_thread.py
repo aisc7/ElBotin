@@ -1,3 +1,4 @@
+#src/Render_thread.py
 import pygame
 from PySide6.QtCore import QThread, Signal
 
@@ -35,8 +36,8 @@ class RenderThread(QThread):
             screen.blit(background, (0, 0))
 
             # Aquí puedes agregar más lógica de dibujo de objetos, personajes, etc.
-            self.ciudad.dibujar(screen, self.nodos_ruta_actual)
-            
+            self.ciudad.dibujar(screen)
+                        
             pygame.display.flip()
             pygame.time.delay(10)
 

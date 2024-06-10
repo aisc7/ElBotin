@@ -1,4 +1,8 @@
+#view/Ciudad.py
 import pygame
+import math
+import time
+import numpy as np
 import networkx as nx
 from src.Botin import Puente
 from src.Render_thread import RenderThread
@@ -129,17 +133,12 @@ class Ciudad:
         else:
             print(mensaje)
 
-    def dibujar(self, screen, nodos_ruta):
-        # Dibujar la ciudad y los nodos
-        screen.blit(self.background, (0, 0))
-
+    def dibujar(self, screen):
+    
         for nodo, (x, y) in self.posiciones_nodos.items():
             pygame.draw.circle(screen, (255, 0, 0), (x, y), 10)
 
-
-        # Actualizar la pantalla después de dibujar todos los vehículos en la ruta
-        pygame.display.flip()
-
+   
     def stop_pygame(self):
         if self.render_thread:
             self.render_thread.stop()

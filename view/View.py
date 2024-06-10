@@ -67,9 +67,9 @@ class RegistroWidget(QWidget):
         layout.addWidget(self.lista_destinos_label)
         layout.addWidget(self.lista_destinos)
 
-        self.tiempo_estimado_label = QLabel("Tiempo estimado de entrega")
+        self.tiempo_estimado_label = QLabel("Tiempo estimado de entrega (en minutos)")
         self.tiempo_estimado_input = QComboBox(self)
-        self.tiempo_estimado_input.addItems(["10 minutos", "15 minutos", "30 minutos", "1 hora"])
+        self.tiempo_estimado_input.addItems(["5", "10", "15", "20"])
         layout.addWidget(self.tiempo_estimado_label)
         layout.addWidget(self.tiempo_estimado_input)
         
@@ -117,21 +117,15 @@ class RegistroWidget(QWidget):
         # Mostrar alerta de guardado exitoso
         QMessageBox.information(self, "Guardado Exitoso", "Los datos han sido guardados correctamente en el archivo CSV.")
 
-        
-        # costo_ruta, camino, vehiculo_seleccionado = Rutas.planificar_ruta(self.ciudad, origen, destino, cantidad_dinero, capacidad_puente_maxima)
-        # if camino:
-        #     if vehiculo_seleccionado.capacidad >= cantidad_dinero:
-        #         QMessageBox.information(self, "Ruta Planificada", f"Ruta: {camino}, Costo: {costo_ruta}, Vehículo: {vehiculo_seleccionado.id}")
-        #     else:
-        #         QMessageBox.warning(self, "Capacidad Insuficiente", "El vehículo seleccionado no tiene suficiente capacidad.")
-        # else:
-        #     QMessageBox.critical(self, "Error", "No se encontró una ruta válida o no se puede hacer a tiempo")
-    # Limpiar campos después de guardar
         self.origen_input.clear()
         self.cantidad_dinero_input.setCurrentIndex(0)
         self.destino_input.setCurrentIndex(0)
         self.tiempo_estimado_input.setCurrentIndex(0)
         self.lista_destinos.clearSelection()
+    
+    def on_tab_changed(self, index):
+        if index != self.parent().tabs.indexOf(self):
+            self.on_guardar()
 
 class BandaDialog(QDialog):
     def __init__(self, parent=None):
@@ -210,6 +204,11 @@ class SimulacionDialogoWidget(QWidget):
         layout.addWidget(self.boton_banda)
    
         self.setLayout(layout)
+    
+    def showEvent(self, event):
+            # Llamar al método cargar_datos_clientes() cada vez que se muestre la pestaña
+            self.cargar_datos_clientes()
+            super().showEvent(event)
 
     def simular_pygame(self):
         self.ciudad = Ciudad()
@@ -251,27 +250,39 @@ class SimulacionDialogoWidget(QWidget):
             QMessageBox.warning(self, "Advertencia", "No hay clientes registrados.")
             return
 
-        cliente, simular = QInputDialog.getItem(self, "Seleccionar Cliente", "Elige un cliente:", clientes, 0, False)
-        if simular and cliente:
-            QMessageBox.information(self, "Cliente a simular", f"Simularás a: {cliente}")
+        selected_client, ok = QInputDialog.getItem(self, "Seleccionar Cliente", 
+                                                "Elige el cliente a simular:", 
+                                                clientes, 0, False)
+        
+        if ok and selected_client:
+            QMessageBox.information(self, "Cliente a simular", f"Simularás a: {selected_client}")
 
-            # Obtener los datos del cliente seleccionado
-            dinero_a_enviar, destino, tiempo_estimado = self.obtener_datos_cliente(cliente)
+            dinero_a_enviar, destino, tiempo_estimado = self.obtener_datos_cliente(selected_client)
 
-            # Crear una instancia de la clase Rutas
-            rutas = Rutas()
+            # Lógica para planificar la ruta utilizando la clase Rutas
+            try:
+                rutas = Rutas()
+                mejor_ruta, mensaje = rutas.planificar_ruta(selected_client, destino, dinero_a_enviar, tiempo_estimado)
 
-            # Llamar al método planificar_ruta de la instancia rutas
-            mejor_ruta, mensaje = rutas.planificar_ruta(cliente, destino, dinero_a_enviar, tiempo_estimado)
-
-            # Procesar el resultado obtenido
-            if mejor_ruta:
-                costo, camino = mejor_ruta
-                # Realizar las operaciones necesarias con el camino y el costo
-                print(f"Costo de la mejor ruta para el cliente {cliente}: {costo}")
-                print(f"Camino de la mejor ruta para el cliente {cliente}: {camino}")
-            else:
-                print(mensaje)
+                if mejor_ruta:
+                    costo, camino = mejor_ruta[1]  # mejor_ruta[1] contiene el costo y el camino
+                    if isinstance(costo, (int, float)) and costo <= tiempo_estimado:
+                        # Construir el mensaje para mostrar en QMessageBox
+                        mensaje_qbox = f"Costo de la mejor ruta para el cliente {selected_client}: {costo} minutos\n"
+                        mensaje_qbox += f"Camino de la mejor ruta para el cliente {selected_client}: {camino}"
+                        QMessageBox.information(self, "Resultado de la ruta", mensaje_qbox)
+                        
+                        # Aquí se inicia Pygame solo si se encuentra una ruta válida
+                        rutas.ciudad.iniciar_pygame()
+                    else:
+                        mensaje_qbox = f"No se puede realizar la ruta para el cliente {selected_client} en el tiempo estimado de {tiempo_estimado} minutos.\n"
+                        mensaje_qbox += f"Costo de la mejor ruta: {costo} minutos\n"
+                        mensaje_qbox += f"Camino de la mejor ruta: {camino}"
+                        QMessageBox.warning(self, "Tiempo excedido", mensaje_qbox)
+                else:
+                    QMessageBox.warning(self, "Error", mensaje)
+            except Exception as e:
+                QMessageBox.critical(self, "Error al planificar la ruta", f"Hubo un error al planificar la ruta: {str(e)}")
 
     def cargar_datos_clientes(self):
         try:
@@ -281,34 +292,23 @@ class SimulacionDialogoWidget(QWidget):
                     nombre = row['Nombre']
                     dinero_a_enviar = int(row['Dinero_a_enviar'])
                     destino = row['Destino'].strip().split(',')  # Convertir destino en una lista de destinos
-                    tiempo_estimado_texto = row['Tiempo_estimado'].strip()  # Obtener tiempo estimado como texto
-                    tiempo_estimado = self.convertir_tiempo_a_minutos(tiempo_estimado_texto)
-
-                    # Guardar los datos en el diccionario de clientes
+                    tiempo_estimado = int(row['Tiempo_estimado(en minutos)'])  # Obtener tiempo estimado como texto
+                   
+     # Guardar los datos en el diccionario de clientes
                     self.clientes_datos[nombre] = (dinero_a_enviar, destino, tiempo_estimado)
 
         except Exception as e:
             QMessageBox.critical(self, "Error al leer CSV", f"No se pudo leer el archivo CSV: {str(e)}")
     
-    def convertir_tiempo_a_minutos(self, tiempo_texto):
-        tiempo_texto = tiempo_texto.lower()  # Convertir texto a minúsculas para manejar diferentes casos
-        if tiempo_texto == "10 minutos":
-            return 10
-        elif tiempo_texto == "15 minutos":
-            return 15
-        elif tiempo_texto == "30 minutos":
-            return 30
-        elif tiempo_texto == "1 hora":
-            return 60
-        return 0  # Retornar 0 si el formato no coincide
-    
     def obtener_clientes_del_csv(self):
         return list(self.clientes_datos.keys())
-
+    
     def obtener_datos_cliente(self, cliente):
         datos_cliente = self.clientes_datos.get(cliente)
         if datos_cliente:
-            return datos_cliente
+            dinero_a_enviar, destino, tiempo_estimado = datos_cliente
+            
+            return dinero_a_enviar, destino, tiempo_estimado
         else:
             QMessageBox.warning(self, "Cliente no encontrado", f"No se encontraron datos para el cliente '{cliente}'")
             return 0, '', 0
@@ -320,10 +320,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.ciudad = Ciudad()
-        self.ciudad.background = pygame.image.load('./data/image/ciudad.jpeg')
-
-        self.Camioneta = Vehiculo(id=1, tipo="camioneta", velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
-        self.Blindado = Vehiculo(id=2, tipo="blindado", velocidad=1, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)
+       
         self.render_thread = None
         self.init_ui()
 
@@ -349,8 +346,10 @@ class MainWindow(QMainWindow):
         # Conectar señales a métodos
         self.show_form_signal.connect(self.mostrar_formulario)
         self.show_simulation_dialog_signal.connect(self.mostrar_dialogo_simulaciones)
-        
+        self.tabs.currentChanged.connect(self.on_tab_changed)  # Conectar la señal de cambio de pestaña
+      
         self.apply_styles()    
+    
     def apply_styles(self):
      self.setStyleSheet("""
         QTabWidget::pane {
@@ -411,7 +410,10 @@ class MainWindow(QMainWindow):
         
     def mostrar_formulario(self):
         self.tabs.setCurrentIndex(0)
-
+    
+    def on_tab_changed(self, index):
+        self.tabChanged.emit(index)
+        
   # Cerrar Pygame al cerrar la aplicación
         app = QApplication.instance()
         if app:

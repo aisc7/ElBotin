@@ -148,10 +148,14 @@ class Rutas:
         mejor_ruta = min(rutas.items(), key=lambda x: x[1][0])
 
         if mejor_ruta[1][0] != float('inf'):
-            return mejor_ruta, f"La mejor ruta es para el destino {destinos[-1]}"
+            costo_ruta, camino_ruta = mejor_ruta[1]
+            if costo_ruta <= tiempo_estimado:
+                return mejor_ruta, f"La mejor ruta es para el destino {destinos[-1]}"
+            else:
+                return None, f"No se puede llegar al destino {destinos[-1]} en el tiempo estimado de {tiempo_estimado} minutos. El costo de la mejor ruta es {costo_ruta} minutos."
         else:
             return None, "No se puede llegar al destino en el tiempo estimado con ninguna ruta."
-
+    
     def planificar_ruta_con_paradas(self, metodo_planificacion, destinos, vehiculo_seleccionado, tiempo_estimado):
         origen = destinos[0]
         paradas = destinos[1:-1]
