@@ -30,7 +30,10 @@ class RenderThread(QThread):
 
             # Dibujar el fondo de la ciudad en la ventana de Pygame
             screen.blit(background, (0, 0))
-
+           
+            for vehiculo in self.vehiculos.values():
+                 vehiculo.actualizar_posicion()
+           
             # Dibujar la ciudad (nodos, caminos, vehículos, etc.)
             self.ciudad.dibujar(screen)
       

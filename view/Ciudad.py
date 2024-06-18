@@ -119,9 +119,15 @@ class Ciudad:
             print(f"Vehículo asignado: {vehiculo_asignado.id}")
             ruta_detallada = rutas.construir_ruta_detallada(camino)
             vehiculo_asignado.ruta_detallada = ruta_detallada
+            
+            # Actualizar posición actual si la ruta detallada tiene al menos un punto
+            if ruta_detallada:
+                vehiculo_asignado.posicion_actual = ruta_detallada[0]
+                vehiculo_asignado.indice_destino = 1  # Inicializar indice_destino a 1
+            
             print(f"Ruta detallada asignada al vehículo {vehiculo_asignado.id}: {ruta_detallada}")
             self.vehiculos[vehiculo_asignado.id] = vehiculo_asignado
-            self.render_thread.update_vehiculos(self.vehiculos)  # Actualizar vehículos en el hilo de renderizado
+            self.render_thread.update_vehiculos(self.vehiculos)
         else:
             print("No se pudo asignar un vehículo.")
     def actualizar_ciudad(self, rutas):
@@ -130,8 +136,10 @@ class Ciudad:
 
     
     def dibujar(self, screen):
-        
         print("Dibujando ciudad")
+    
+        for nodo, (x, y) in self.posiciones_nodos.items():
+            pygame.draw.circle(screen, (255, 0, 0), (x, y), 10)
         # Dibujar vehículos y rutas detalladas
         for vehiculo in self.vehiculos.values():
             print(f"Dibujando vehículo {vehiculo.id}")
@@ -147,19 +155,24 @@ class Ciudad:
             if vehiculo.ruta_detallada:
                 camino_detallado = vehiculo.ruta_detallada
                 print(f"Camino detallado para el vehículo {vehiculo.id}: {camino_detallado}")
+
+                # Dibujar el camino detallado en la pantalla
                 pygame.draw.lines(screen, (0, 255, 0), False, camino_detallado, 5)
 
-                # Dibujar el vehículo en su posición inicial (primer punto de la ruta detallada)
-                x, y = camino_detallado[0]
-                screen.blit(imagen_vehiculo, (x - imagen_vehiculo.get_width() // 2, y - imagen_vehiculo.get_height() // 2))
+                # Verificar si el vehículo tiene una posición actual definida
+                if vehiculo.posicion_actual:
+                    x, y = vehiculo.posicion_actual
+                    screen.blit(imagen_vehiculo, (x - imagen_vehiculo.get_width() // 2, y - imagen_vehiculo.get_height() // 2))
+                else:
+                    print(f"El vehículo {vehiculo.id} no tiene posición actual definida.")
             else:
                 print(f"El vehículo {vehiculo.id} no tiene ruta detallada asignada.")
 
                 # Dibujar el vehículo en su posición actual si no tiene ruta detallada
-                if hasattr(vehiculo, 'posicion_actual'):
+                if hasattr(vehiculo, 'posicion_actual') and vehiculo.posicion_actual in self.posiciones_nodos:
                     x, y = self.posiciones_nodos[vehiculo.posicion_actual]
                     screen.blit(imagen_vehiculo, (x - imagen_vehiculo.get_width() // 2, y - imagen_vehiculo.get_height() // 2))
-    
+
     def stop_pygame(self):
         if self.render_thread:
             self.render_thread.stop()

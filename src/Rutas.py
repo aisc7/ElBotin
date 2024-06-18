@@ -206,9 +206,9 @@ class Rutas:
     def asignar_vehiculo(self, dinero_a_enviar):
         if isinstance(dinero_a_enviar, int):
             if dinero_a_enviar <= 500:
-                vehiculo = Vehiculo(id='camioneta', tipo='camioneta', velocidad=3, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
+                vehiculo = Vehiculo(id='camioneta', tipo='camioneta', velocidad=850, capacidad=500, escudo=5, ataque=10, escoltas_necesarias=1)
             else:
-                vehiculo = Vehiculo(id='blindado', tipo='blindado', velocidad=1, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)
+                vehiculo = Vehiculo(id='blindado', tipo='blindado', velocidad=500, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)
             
             self.vehiculos[vehiculo.id] = vehiculo  # Almacenar el vehículo en el diccionario
             print(f"Vehículo asignado y almacenado: {vehiculo.id}")

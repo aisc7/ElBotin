@@ -40,12 +40,60 @@ class Vehiculo:
         self.capacidad = capacidad
         self.escoltas_necesarias = escoltas_necesarias
         self.contenedores_permitidos = self.establecer_contenedores_permitidos()
-        self.ruta_detallada = False  # Agregar el atributo ruta_detallada
-    
+        self.ruta_detallada = [] 
+        self.posicion_actual = None  
+        self.indice_destino = 1  
+
     def asignar_ruta_detallada(self, ruta_detallada):
         self.ruta_detallada = ruta_detallada
-        self.tiene_ruta_detallada = True
-        
+        self.posicion_actual = self.ruta_detallada[0] if self.ruta_detallada else None
+            
+    def actualizar_posicion(self):
+            if self.ruta_detallada:
+                if self.indice_destino < len(self.ruta_detallada):
+                    x_destino, y_destino = self.ruta_detallada[self.indice_destino]
+
+                    if self.posicion_actual is not None:
+                        x_actual, y_actual = self.posicion_actual
+                        dx = x_destino - x_actual
+                        dy = y_destino - y_actual
+                        distancia = (dx ** 2 + dy ** 2) ** 0.5
+
+                        if distancia > 0:
+                            pasos = self.velocidad  # Utilizamos la velocidad del vehículo directamente
+                            x_nuevo = x_actual + dx * pasos / distancia
+                            y_nuevo = y_actual + dy * pasos / distancia
+
+                            # Verificar si el vehículo ha pasado el punto de destino
+                            if (dx >= 0 and x_nuevo >= x_destino) or (dx < 0 and x_nuevo <= x_destino):
+                                x_nuevo = x_destino
+                            if (dy >= 0 and y_nuevo >= y_destino) or (dy < 0 and y_nuevo <= y_destino):
+                                y_nuevo = y_destino
+
+                            self.posicion_actual = (x_nuevo, y_nuevo)
+
+                            # Verificar si estamos lo suficientemente cerca del punto de destino
+                            umbral_distancia = 5  # Ajusta este valor según la precisión requerida
+                            distancia_al_destino = ((x_nuevo - x_destino) ** 2 + (y_nuevo - y_destino) ** 2) ** 0.5
+                            if distancia_al_destino < umbral_distancia:
+                                if self.indice_destino == len(self.ruta_detallada) - 1:
+                                    # Hemos llegado al último nodo
+                                    self.esta_llegado = True
+                                else:
+                                    self.indice_destino += 1
+                        else:
+                            # Si estamos exactamente en el punto de destino, avanzamos al siguiente
+                            if self.indice_destino == len(self.ruta_detallada) - 1:
+                                # Hemos llegado al último nodo
+                                self.esta_llegado = True
+                            else:
+                                self.indice_destino += 1
+                    else:
+                        # Si no hay posición actual, asignar la primera posición de la ruta
+                        self.posicion_actual = self.ruta_detallada[0]
+                        self.indice_destino = 1  # Inicializar indice_destino a 1
+                    print(f"Velocidad actual del vehículo {self.id}: {self.velocidad}")
+   
     def establecer_contenedores_permitidos(self):
         if self.tipo == "camioneta":
             return ["Tipo1", "Tipo2"]  # Ejemplo de contenedores permitidos para camioneta
