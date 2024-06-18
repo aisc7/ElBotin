@@ -3,7 +3,6 @@ import os
 import csv
 import pygame
 from src.Rutas import Rutas
-from src.Botin import Vehiculo
 from PySide6.QtCore import Signal 
 from view.Ciudad import Ciudad
 from PySide6.QtGui import QPixmap, QPalette, QBrush
@@ -272,8 +271,6 @@ class SimulacionDialogoWidget(QWidget):
                         mensaje_qbox += f"Camino de la mejor ruta para el cliente {selected_client}: {camino}"
                         QMessageBox.information(self, "Resultado de la ruta", mensaje_qbox)
                         
-                        # Aquí se inicia Pygame solo si se encuentra una ruta válida
-                        rutas.ciudad.iniciar_pygame()
                     else:
                         mensaje_qbox = f"No se puede realizar la ruta para el cliente {selected_client} en el tiempo estimado de {tiempo_estimado} minutos.\n"
                         mensaje_qbox += f"Costo de la mejor ruta: {costo} minutos\n"
@@ -283,7 +280,7 @@ class SimulacionDialogoWidget(QWidget):
                     QMessageBox.warning(self, "Error", mensaje)
             except Exception as e:
                 QMessageBox.critical(self, "Error al planificar la ruta", f"Hubo un error al planificar la ruta: {str(e)}")
-
+        
     def cargar_datos_clientes(self):
         try:
             with open('./data/registro.csv', 'r') as file:
@@ -328,7 +325,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Simulación de Rutas")
 
         # Establecer tamaño de la ventana
-        self.resize(900, 935)
+        self.resize(930, 955)
 
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)

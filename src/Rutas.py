@@ -6,8 +6,10 @@ from view.Ciudad import Ciudad
 
 class Rutas:
     def __init__(self):
+        self.vehiculos = {} 
         self.ciudad = Ciudad()
-        self.ciudad.iniciar_pygame()  # Asegúrate de que `iniciar_pygame` se llama para cargar imágenes y crear el grafo
+        self.ciudad.iniciar_pygame(self.vehiculos)
+         
 
     def planificar_ruta_bfs(self, origen, destino, vehiculo_seleccionado, tiempo_estimado):
         visitados = set()
@@ -128,8 +130,7 @@ class Rutas:
     
     def planificar_ruta(self, nombre, destino, dinero_a_enviar, tiempo_estimado):
         vehiculo_seleccionado = self.asignar_vehiculo(dinero_a_enviar)
-        print(f"Planificando ruta para el cliente {nombre} con {dinero_a_enviar} dinero")
-
+        
         # Verificar si el destino es una lista y unirla en una cadena si es necesario
         if isinstance(destino, list):
             destino = ','.join(destino)
@@ -150,6 +151,11 @@ class Rutas:
         if mejor_ruta[1][0] != float('inf'):
             costo_ruta, camino_ruta = mejor_ruta[1]
             if costo_ruta <= tiempo_estimado:
+               
+                ruta_detallada = self.construir_ruta_detallada(camino_ruta)
+                vehiculo_seleccionado.ruta_detallada = ruta_detallada
+                self.vehiculos[vehiculo_seleccionado.id] = vehiculo_seleccionado
+
                 return mejor_ruta, f"La mejor ruta es para el destino {destinos[-1]}"
             else:
                 return None, f"No se puede llegar al destino {destinos[-1]} en el tiempo estimado de {tiempo_estimado} minutos. El costo de la mejor ruta es {costo_ruta} minutos."
@@ -182,7 +188,21 @@ class Rutas:
             return tiempo_total, camino_completo
         else:
             return float('inf'), []
+            
+    def construir_ruta_detallada(self, camino_ruta):
+        ruta_detallada = []
+        for i in range(len(camino_ruta) - 1):
+            nodo_origen = camino_ruta[i]
+            nodo_destino = camino_ruta[i + 1]
+            par_de_nodos = (nodo_origen, nodo_destino)
+            if par_de_nodos in self.ciudad.caminos_detallados:
+                ruta_detallada.extend(self.ciudad.caminos_detallados[par_de_nodos])
+            else:
+                print(f"No se encontró una ruta detallada para el camino: {par_de_nodos}")
+        print(f"Ruta detallada construida: {ruta_detallada}")
+        return ruta_detallada
 
+            
     def asignar_vehiculo(self, dinero_a_enviar):
         if isinstance(dinero_a_enviar, int):
             if dinero_a_enviar <= 500:
@@ -190,12 +210,9 @@ class Rutas:
             else:
                 vehiculo = Vehiculo(id='blindado', tipo='blindado', velocidad=1, capacidad=2500, escudo=20, ataque=15, escoltas_necesarias=2)
             
-            # Imprimir los detalles del vehículo seleccionado
-            print(f"Vehículo seleccionado para enviar {dinero_a_enviar} dinero: {vehiculo.id}, Tipo: {vehiculo.tipo}, Velocidad: {vehiculo.velocidad}, Capacidad: {vehiculo.capacidad}")
-            
+            self.vehiculos[vehiculo.id] = vehiculo  # Almacenar el vehículo en el diccionario
+            print(f"Vehículo asignado y almacenado: {vehiculo.id}")
             return vehiculo
-
-        print(f"Error: dinero_a_enviar no es un entero válido: {dinero_a_enviar}")
         return None
 
         
@@ -210,10 +227,15 @@ class Rutas:
         
     def construir_camino(self, padre, origen, destino):
         camino = [destino]
-        while camino[-1] != origen:
-            camino.append(padre[camino[-1]])
+        actual = destino
+        
+        while actual != origen:
+            actual = padre[actual]
+            camino.append(actual)
+        
         camino.reverse()
         return camino
+
         
     def ladrones(self, cliente, vehiculo_asignado, mejor_ruta_cliente, dinero_a_enviar, tiempo_estimado, ataque_ladrones, escudo_ladrones):
         # Verificar que el vehículo asignado sea un blindado

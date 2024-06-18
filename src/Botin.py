@@ -40,6 +40,11 @@ class Vehiculo:
         self.capacidad = capacidad
         self.escoltas_necesarias = escoltas_necesarias
         self.contenedores_permitidos = self.establecer_contenedores_permitidos()
+        self.ruta_detallada = False  # Agregar el atributo ruta_detallada
+    
+    def asignar_ruta_detallada(self, ruta_detallada):
+        self.ruta_detallada = ruta_detallada
+        self.tiene_ruta_detallada = True
         
     def establecer_contenedores_permitidos(self):
         if self.tipo == "camioneta":
